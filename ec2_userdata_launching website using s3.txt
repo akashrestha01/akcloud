@@ -1,0 +1,21 @@
+#!/bin/bash
+# Update system
+yum update -y
+
+# Install Apache web server
+yum install -y httpd
+
+# Start and enable Apache to run at boot
+systemctl start httpd
+systemctl enable httpd
+
+# Install AWS CLI (if not already installed)
+yum install -y aws-cli
+
+# Download website files from S3
+cd /var/www/html
+aws s3 cp s3://BUCKETNAME/ /var/www/html/ --recursive
+
+# Set proper permissions
+chown -R apache:apache /var/www/html
+chmod -R 755 /var/www/html
