@@ -1,0 +1,131 @@
+========================================================================================
+Ec2 Instance Tag
+========================================================================================
+AutoOn = True
+AutoOff = True
+
+
+========================================================================================
+IAM Policies
+========================================================================================
+
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeInstances",
+                "ec2:StartInstances",
+                "ec2:DescribeTags",
+                "ec2:StopInstances",
+                "ec2:DescribeInstanceStatus"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+
+
+
+Breakdown of Each Permission
+-----------------------------------
+1. "ec2:DescribeInstances"
+
+Allows the Lambda function to list and retrieve details about EC2 instances.
+Needed to check which instances are currently stopped and have the tag AutoOn=True.
+
+
+2. "ec2:StartInstances"
+
+Allows the Lambda function to start stopped instances.
+Required because the function starts instances that match the AutoOn=True tag.
+
+
+3. "ec2:DescribeTags"
+
+Allows the Lambda function to read tags attached to EC2 instances.
+Needed to find instances that have the AutoOn=True tag.
+
+
+4. "ec2:StopInstances"
+
+Allows the function to stop running instances (if you later add a stop function).
+Not used in your current function, but useful if you plan to stop instances outside of work hours in a separate Lambda function.
+
+
+5. "ec2:DescribeInstanceStatus"
+
+Allows the Lambda function to check the status of instances (e.g., running, stopped, pending).
+Helps verify if the instance has successfully started or is still in the stopping state.
+
+
+
+
+
+========================================================================================
+OFF CODE
+========================================================================================
+import boto3
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+ec2 = boto3.resource('ec2')
+
+def lambda_handler(event, context):
+    filters = [{
+            'Name': 'tag:AutoOff',
+            'Values': ['True']
+        },
+        {
+            'Name': 'instance-state-name', 
+            'Values': ['running']
+        }
+    ]
+    
+    instances = ec2.instances.filter(Filters=filters)
+    RunningInstances = [instance.id for instance in instances]
+
+    if len(RunningInstances) > 0:
+        shuttingDown = ec2.instances.filter(InstanceIds=RunningInstances).stop()
+        print("shuttingDown")
+    else:
+        print("Nothing to see here")
+
+
+
+
+========================================================================================
+ON CODE
+========================================================================================
+import boto3
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+ec2 = boto3.resource('ec2')
+
+def lambda_handler(event, context):
+    filters = [{
+            'Name': 'tag:AutoOn',
+            'Values': ['True']
+        },
+        {
+            'Name': 'instance-state-name', 
+            'Values': ['stopped']
+        }
+    ]
+    
+    instances = ec2.instances.filter(Filters=filters)
+    StoppedInstances = [instance.id for instance in instances]
+
+    if len(StoppedInstances) > 0:
+        startingUp = ec2.instances.filter(InstanceIds=StoppedInstances).start()
+        print("startingUp")
+    else:
+        print("Nothing to see here")
